@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::cmp::PartialEq;
 use stdweb::web::{INode, Node, IElement, Element, EventListenerHandle, document};
-use stdweb::web::html_element::InputElement;
+use stdweb::web::html_element::{InputElement, TextAreaElement};
 use stdweb::unstable::TryFrom;
 use html::{ScopeEnv, Component};
 use super::{Listener, Listeners, Classes, Attributes, Patch, Reform, VDiff, VNode};
@@ -352,6 +352,39 @@ impl<CTX: 'static, COMP: Component<CTX>> VDiff for VTag<CTX, COMP> {
                 // IMPORTANT! This parameters have to be set every time
                 // to prevent strange behaviour in browser when DOM changed
                 set_checked(&input, self.checked);
+            } else if let Ok(input) = TextAreaElement::try_from(subject.clone()) {
+                if let Some(change) = self.soakup_kind(&mut opposite) {
+                    match change {
+                        Patch::Add(kind, _) |
+                        Patch::Replace(kind, _) => {
+                            let input = &input;
+                            js! { @(no_return)
+                                    @{input}.type = @{kind};
+                            }
+                        }
+                        Patch::Remove(_) => {
+                            let input = &input;
+                            js! { @(no_return)
+                                    @{input}.type = "";
+                            }
+                        }
+
+
+                    }
+                }
+
+                if let Some(change) = self.soakup_value(&mut opposite) {
+                    match change {
+                        Patch::Add(kind, _) |
+                        Patch::Replace(kind, _) => {
+                            input.set_value(&kind);
+                        }
+                        Patch::Remove(_) => {
+                            input.set_value("");
+                        }
+                    }
+                }
+
             }
 
             // Every render it removes all listeners and attach it back later
